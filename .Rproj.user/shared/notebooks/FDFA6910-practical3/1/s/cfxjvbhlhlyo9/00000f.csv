@@ -1,7 +1,0 @@
-"0","N2 <- read.csv(""data/net_anon24.csv"",  header = TRUE)"
-"0",""
-"0","gn2 <- graph.data.frame(N2, directed = TRUE) + "
-"0","  vertices(25, 16, 34, 64, 99, 54, 113)  #reading the edge list and adding isolates with vertices"
-"0",""
-"0","set.seed(1)"
-"0","lf2 <-layout.fruchterman.reingold(gn2) #fixing the layout with layout.fruchterman.reingold() "

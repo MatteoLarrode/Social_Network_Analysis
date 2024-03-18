@@ -1,6 +1,0 @@
-"0","mbe <- aggregate("
-"0","  x = betweenness(gn2), "
-"0","  by = list(as.factor(V(gn2)$course)), "
-"0","  FUN=mean)"
-"0",""
-"0","mbe "

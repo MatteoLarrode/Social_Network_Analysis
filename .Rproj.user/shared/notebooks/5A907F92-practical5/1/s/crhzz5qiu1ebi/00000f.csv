@@ -1,8 +1,0 @@
-"0","M <- matrix(1, nrow = 5, ncol = 5) #adjacency matrix of the network: all 1's, complete network"
-"0","diag(M) <- 0 #replacing diagonals with 0 as no self-edges are allowed."
-"0",""
-"0","g.3 <- graph_from_adjacency_matrix(M, mode = ""undirected"")"
-"0",""
-"0","plot(g.3, layout = layout.circle, "
-"0","     edge.label = c(""+"", ""+"", ""-"", ""-"", ""+"", ""-"", ""-"", ""-"", ""-"", ""+""), #labels of the edges"
-"0","     edge.label.cex=2, edge.label.font = 2) #cosmetic stuff"

@@ -1,2 +1,0 @@
-"0",""
-"0","text(-1, -1, paste(""Global clustering:"", round(transitivity(gn),3) )) # adding global clustering on the plot"

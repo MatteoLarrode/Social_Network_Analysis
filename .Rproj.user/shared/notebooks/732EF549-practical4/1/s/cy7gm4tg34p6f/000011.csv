@@ -1,8 +1,0 @@
-"0",""
-"0","legend(""topleft"","
-"0","       bty = ""n"","
-"0","       legend=unique(as.factor(coreness(gn))), "
-"0","       cex = 0.7, "
-"0","       fill = rainbow(8)[unique(as.factor(coreness(gn)))]"
-"0","       )"
-"0",""

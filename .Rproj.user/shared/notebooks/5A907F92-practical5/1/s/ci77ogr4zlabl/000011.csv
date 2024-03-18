@@ -1,2 +1,0 @@
-"0",""
-"0","abline(lm(betweenness(gn, normalized = TRUE) ~ transitivity(gn, type = ""local"", isolates = ""NaN"") ))"

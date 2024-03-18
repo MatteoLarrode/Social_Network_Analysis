@@ -1,13 +1,15 @@
 ---
-title: "Practical 7: Assortativity and communities"
+title: "Practical 8: Exponential Random Graph Models (Part 1)"
 author: "Matteo Larrode"
 date: "2024-03-18"
 output: html_document
 ---
 
 ```{r}
-library(igraphdata)
 library(igraph)
+library(igraphdata)
+library(ergm)
+library(intergraph)
 ```
 
 ### Exercise 0: Modularity in an Example Network 
@@ -38,6 +40,7 @@ modularity(g.x, membership = c(1, 1, 1, 1, 2, 2, 2, 2))
 ### Exercise 1: Communities in Zachary’s Karate Club Network
 
 ```{r}
+library(igraphdata)
 data(karate)
 
 plot(karate, asp = 0)

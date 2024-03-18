@@ -1,8 +1,0 @@
-"0","mtr <- aggregate(x = transitivity(gn, type = ""local"", isolates = ""zero""), "
-"0","                 by = list(as.factor(V(gn)$course)), "
-"0","                 FUN=mean)"
-"0",""
-"0","barplot(height  = mtr[,2], names.arg = mtr[,1], "
-"0","        xlab=""Course"", "
-"0","        ylab=""Avg local clustering"", "
-"0","        main = ""Local clustering across courses"")"

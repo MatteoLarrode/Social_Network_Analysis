@@ -1,8 +1,0 @@
-"0","plot(gn2, "
-"0","     vertex.size= 2, "
-"0","     edge.arrow.size = 0.3,  "
-"0","     vertex.label.cex = 0.7, "
-"0","     vertex.label.dist=0.7,"
-"0","     edge.curved=.2, "
-"0","     asp = 0, "
-"0","     layout = lf2)"

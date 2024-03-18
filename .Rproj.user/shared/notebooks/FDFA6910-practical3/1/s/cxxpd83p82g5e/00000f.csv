@@ -1,6 +1,0 @@
-"0","barplot("
-"0","  height  = mind[,2], "
-"0","  names.arg = mind[,1], "
-"0","  xlab=""Course"", "
-"0","  ylab=""Avg indegree"", "
-"0","  main = ""Indegree"")"

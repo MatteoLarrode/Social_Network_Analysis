@@ -1,5 +1,0 @@
-"0",""
-"0","text(0.8, 0.1, paste(""Correlation:"", "
-"0","                     round(cor(transitivity(gn, type = ""local"", isolates = ""NaN""), "
-"0","                               betweenness(gn, normalized = TRUE), "
-"0","                               use = ""na.or.complete""),2)))"

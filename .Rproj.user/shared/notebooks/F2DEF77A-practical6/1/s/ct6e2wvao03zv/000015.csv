@@ -1,4 +1,0 @@
-"0",""
-"0","plot(c(0:4), degree_distribution(g.x, cumulative = TRUE), "
-"0","     type = ""b"", main = ""Cumulative degree distribution"", "
-"0","     xlab=""Degree"", ylab =""p(degree)>x"" )"

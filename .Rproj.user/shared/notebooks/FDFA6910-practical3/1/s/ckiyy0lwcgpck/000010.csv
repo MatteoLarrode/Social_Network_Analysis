@@ -1,6 +1,0 @@
-"0","mind <- aggregate("
-"0","  x = degree(gn2, mode = ""in""), "
-"0","  by = list(as.factor(V(gn2)$course)), "
-"0","  FUN=mean)"
-"0",""
-"0","mind "

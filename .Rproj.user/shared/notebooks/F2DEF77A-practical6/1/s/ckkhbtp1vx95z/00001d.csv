@@ -1,6 +1,0 @@
-"0",""
-"0","plot (degree_distribution(g, mode=""in"", cumulative = FALSE), log = ""xy"","
-"0","      ylab = ""Ratio (log scale)"", "
-"0","      xlab = ""Degree (log scale)"", "
-"0","      main = ""Degree distribution (log-log)"")"
-"2","Warning: 1065 y values <= 0 omitted from logarithmic plot"

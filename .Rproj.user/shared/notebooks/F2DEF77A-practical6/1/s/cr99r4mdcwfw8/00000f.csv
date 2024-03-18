@@ -1,4 +1,0 @@
-"0","g.2 <- sample_pa(100, m = 3)"
-"0","set.seed(2021)"
-"0","plot(g.2, vertex.size=5, edge.color=""Blue"", edge.arrow.size=.3, "
-"0","     vertex.label=NA, main='Scale-Free Network', asp=0)"
