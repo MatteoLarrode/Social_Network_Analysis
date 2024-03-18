@@ -1,0 +1,4 @@
+"0","T <- transitivity(N, type=""local"")              "
+"0","B <- betweenness(N)"
+"0",""
+"0","plot(T, B, xlab=""Local clustering"", ylab=""Betweenness"")       "

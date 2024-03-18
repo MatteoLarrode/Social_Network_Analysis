@@ -1,0 +1,5 @@
+"0","#selecting and ordering courses according tho the node order and set in V(gn)
+c <- (c[as.numeric((V(gn)$name)),]) 
+"
+"2","Error: object 'gn' not found
+"

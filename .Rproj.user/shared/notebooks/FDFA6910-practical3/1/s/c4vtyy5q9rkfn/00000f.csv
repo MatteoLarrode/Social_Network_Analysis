@@ -1,0 +1,3 @@
+"0","plot(gn2, vertex.size= 2, edge.arrow.size = 0.3,  vertex.label.cex = 0.7, "
+"0","     edge.curved=.2, asp = 0, layout = lf2, vertex.label.dist=0.7, "
+"0","     vertex.color = rainbow(4)[as.factor(V(gn2)$course)], main = ""Network of SOCS0081"")"

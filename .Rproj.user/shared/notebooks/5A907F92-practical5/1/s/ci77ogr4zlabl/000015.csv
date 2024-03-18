@@ -1,0 +1,4 @@
+"0",""
+"0","text(transitivity(gn, type = ""local"", isolates = ""NaN""), "
+"0","     betweenness(gn, normalized = TRUE), "
+"0","     labels=V(gn)$name,cex=0.7, font=2, pos=2)"

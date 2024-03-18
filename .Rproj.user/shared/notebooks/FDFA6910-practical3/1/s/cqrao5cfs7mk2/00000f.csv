@@ -1,0 +1,3 @@
+"0","got_net_reduced <- delete.vertices(got_net, which(degree(got_net) < 3))"
+"0",""
+"0","plot.igraph(got_net_reduced)"

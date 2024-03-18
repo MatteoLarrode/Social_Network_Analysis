@@ -1,0 +1,304 @@
+---
+title: "Practical 6: Small World and Scale-Free Networks"
+author: "Matteo Larrode"
+date: "2024-02-22"
+output: html_document
+---
+
+```{r}
+library(igraph)
+library(igraphdata)
+```
+
+### Exercice 1: Small Worlds
+In this part of the exercises we will compare a real-world social network (network of SOCS0081) with random networks and small-world networks of the same size.
+
+#### Observed Network
+```{r}
+N <- read.csv("data/net_anon24.csv", header = TRUE)
+c <- read.csv("data/courses24.csv", header = TRUE)
+
+g <- graph.data.frame(N, directed = FALSE) + 
+  vertices(25, 16, 34, 64, 99, 54, 113)
+
+g <- set_vertex_attr(g, "course", value = c[as.numeric((V(g)$name)),]$course)
+
+set.seed(1)
+lf <-layout.fruchterman.reingold(g) 
+
+plot(g, vertex.size= 2, edge.arrow.size = 0.3,  vertex.label.cex = 0.7, 
+     edge.curved=.2, asp = 0, layout = lf, vertex.label.dist=0.7, 
+     vertex.color = rainbow(4)[as.factor(V(g)$course)], main = "Undirected network of SOCS0081")
+```
+
+**a) Average degree ignoring direction**
+
+```{r}
+deg <- mean(degree(g))
+deg
+```
+
+**b) Average distance between pairs of nodes**
+```{r}
+dist <- mean_distance(g, directed = FALSE, unconnected = TRUE)
+dist
+```
+
+**c) Global clustering coefficient**
+```{r}
+clustering <- transitivity(g)
+clustering
+```
+
+**d) Number of nodes**
+```{r}
+n <- length(V(g))
+n
+```
+
+**e) Probability of forming a link in a random graph**
+```{r}
+p <- deg/(n-1)
+p
+```
+
+#### Random Network 
+
+**Create a random network that has the same number of nodes as the SOCS0081 network and the probability that a particular edge is added to the network equals to p calculated above**
+
+```{r}
+set.seed(100)
+
+g.r <- sample_gnp(n, p, directed = FALSE, loops = FALSE)
+
+mean(degree(g.r))
+mean_distance(g.r, directed = FALSE, unconnected = FALSE)
+transitivity(g.r)
+```
+
+The random graph captures average degree well (6.05), though this is unsurprising as in simulations we set this value to the one observed in SOCS0081. Average distance is somewhat lower in the random graph with the same number of nodes and edges (2.78 verus 4.22). 
+
+Random graph does a really terrible job at capturing the clustering coefficient. In a random graph with the same number of nodes and edges, clustering coefficient is much smaller than the one observed in SOCS0081 (0.37 versus 0.07).
+
+**Monte Carlo simulation: repeat 2) 1000 times and plot the histogram of mean degree, mean distance, and clustering coefficient**
+
+```{r}
+M <- matrix(NA, nrow = 1000, ncol = 3)
+colnames(M) <- c("degree", "distance", "clustering")
+
+for (i in 1:1000) {
+        g.r    <- sample_gnp(n, p, directed = FALSE, loops = FALSE)
+        M[i,1] <- mean(degree(g.r))
+        M[i,2] <- mean_distance(g.r, directed = FALSE, unconnected = TRUE)
+        M[i,3] <- transitivity(g.r)
+}
+
+par(mfrow=c(1,3))
+
+hist(M[,1], main = "Histogram of mean degree")
+abline(v = deg, col="red", lwd=3, lty=2)
+
+hist(M[,2], xlim = c(2.5,4.2), main = "Histogram of mean distance")
+abline(v = dist, col="red", lwd=3, lty=2)
+
+hist(M[,3], xlim = c(0.02,0.4), main = "Histogram of Clustering coeff")
+abline(v = clustering, col="red", lwd=3, lty=2)
+
+```
+
+Our conclusions are the same: mean degree is well captured by a random graph but mean distance and clustering coefficient are crucially underestimated with a random graph compared to the observed network. 
+
+We can even calculate p-values (statistical tests whether what we observe in SOCS0081 is significantly different from the random graph model):
+
+```{r}
+sum(M[,1] > deg)/1000
+sum(M[,2] > dist)/1000
+sum(M[,3] > clustering)/1000
+
+```
+
+Mean degree in SOCS0081 network is not significantly different from random graph model, this is unsurprising, because when we were simulating random graphs, we set the tie probability to average degree in SOCS0081. But average distance and transitivity are significantly different in the random network.
+
+#### Small-world Network
+
+**Now create a small-world network a la Watts and Strogatz**
+
+- Use 1-dimensional version
+- Set the rewiring probability to 0.1 (hence 10% of edges are rewired randomly with some other node)
+- Make sure that each node has degree, roughly the same as the mean degree in SOCS0081 by setting neighbourhood size to half the average degree in SOCS0081 (6 neighbours: 3 in each direction)
+
+```{r}
+g.s <- sample_smallworld(dim = 1, # one dimension (all nodes are around a circle)
+                         size = n,
+                         nei = round(deg/2), # neighbourhood is c/2 in both ways so c in total
+                         p = 0.1 ) 
+
+mean(degree(g.s))
+mean_distance(g.s, directed = FALSE, unconnected = FALSE)
+transitivity(g.s)
+
+```
+
+The small world network now captures the transitivity of real-world network well. Also, the mean distance is closer to the actual value than the random graph we checked above. 
+
+**Vary rewiring probability from 0 to 0.5 and study how average distance and clustering coefficient in a small world network vary by the rewiring probability**
+
+*Note: Any p above 0.5 is effectively results in the same resul as p = 0.5*
+
+```{r}
+K <- matrix(NA, nrow = 1000, ncol = 3)
+
+colnames(K) <- c("Rewiring Probability", "Mean Distance", "Clustering Coefficient")
+
+for (i in 1:1000) {
+  g.s <- sample_smallworld(1, n, round(deg/2), (i/2)/1000)
+  K[i,1] <- (i/2)/1000 
+  K[i,2] <- mean_distance(g.s, directed = FALSE, unconnected = FALSE)
+  K[i,3] <- transitivity(g.s) 
+}
+
+par(mfrow=c(1,2))
+plot(K[,1],K[,2], xlab = "p", ylab="mean distance")
+plot(K[,1],K[,3], xlab = "p", ylab="Clustering coeff")
+
+```
+The plots show that as p increases, mean distance very quickly decreases. The clustering coefficient also decreases as p increases, but less rapidly than mean distance does. This is in fact the essence of the small world model of Watts and Strogatz. So for relatively low values of p, we have low mean distance and high clustering–properties of many of the observed networks.
+
+### Excercice 2: Scale-free networks
+
+Now we will study scale-free networks and (cumulative) degree distributions.
+
+#### Power Law and Scale-free Networks
+**Describe what a power law means and discuss what mechanisms result in scale-free networks.**
+
+A power law is a functional relationship between two quantities, where one quantity varies as a power of another. They are ubiquitous in nature and society, manifesting in phenomena such as the distribution of earthquake magnitudes, city sizes, and the connectivity of nodes in networks.
+
+Scale-free networks are a type of network that exhibit a power-law distribution in their node connectivity. This means that in these networks, most nodes have only a few connections, while a small number of nodes (hubs) have a very large number of connections. This distribution follows a power law, meaning there's no characteristic scale for the number of connections a node might have. 
+
+In more common or "normal" distributions, such as the bell curve, most of the data points cluster around a central value (the mean), and this central value is a good indicator or "scale" for what to expect from a randomly chosen data point. In scale-free networks, however, the distribution of connections (or degrees) among nodes doesn't cluster around a central value. Instead, the distribution follows a power law, which means that while the majority of nodes have a relatively small number of connections, there is a long tail in the distribution where a small number of nodes have an exceptionally high number of connections. This disparity creates a situation where there isn't a "typical" number of connections that could describe most of the nodes.
+
+Several mechanisms lead to the formation of scale-free networks, most of them are driven by some form of feedback loop:
+
+- Example 1 - Preferential Attachment: When new nodes are added to a network, they prefer to attach to nodes that are already well-connected. This "rich-get-richer" mechanism ensures that nodes that are already hubs are more likely to become even bigger hubs, leading to the power-law distribution in connectivity.
+
+- Example 2 - Duplication: Particularly relevant in biological networks, such as protein-protein interaction networks, new nodes can duplicate existing ones, inheriting their connections and potentially adding new ones. This duplication mechanism can also contribute to the power-law distribution of connectivity.
+
+#### Example network
+
+**Consider the following network. Inspect the degree of each node. Plot the degree and cumulative degree distributions of this network.**
+
+```{r}
+g.x <- graph( c(1,2 ,1,4, 2,4, 3,4, 4,7, 5,7, 
+                7,9, 8,9, 8,10, 9,10), directed=FALSE )
+set.seed(1234) ## set the seed in my original drawing, otherwise the nodes will float around
+plot(g.x)
+```
+
+```{r}
+table(degree(g.x))
+degree_distribution(g.x) 
+degree_distribution(g.x, cumulative = TRUE)
+```
+
+Let's get to plotting:
+
+```{r}
+par(mfrow=c(1,2))
+
+plot(c(0:4), degree_distribution(g.x, cumulative = FALSE), 
+     type = "b", main ="Degree distribution", 
+     xlab="Degree", ylab ="p(degree)" )
+
+plot(c(0:4), degree_distribution(g.x, cumulative = TRUE), 
+     type = "b", main = "Cumulative degree distribution", 
+     xlab="Degree", ylab ="p(degree)>x" )
+```
+
+This network does not show a clear power-law distribution, which is characteristic of scale-free networks. In scale-free networks, the degree distribution follows a power-law, meaning a small number of nodes have a high degree, and a large number of nodes have a low degree. The degree distribution in this network ([0.1 0.2 0.4 0.2 0.1]) suggests a more normal distribution of connectivity.
+
+The degree distribution and cumulative degree distribution indicate a relatively balanced network, with a mix of nodes having different numbers of connections. There isn't a pronounced presence of very highly connected nodes (hubs) that would dominate the network, which is a typical feature of scale-free networks.
+
+#### Scale-free Network a la Barabasi and Albert (1999) preferential attachment model.**
+
+**a) Simulate a network with 10,000 nodes and 3 edges per node on average.**
+
+```{r}
+set.seed(12345) 
+g <- sample_pa(10000, m = 3)
+```
+
+**b)Plot the degree and cumulative in-degree distributions (out-degrees here will not be very interesting, for almost all nodes will have an out-degree of three)**
+
+```{r}
+par(mfrow=c(1,2))
+plot (degree_distribution(g, mode="in", cumulative = TRUE), 
+      ylab = "Ratio", 
+      xlab = "Degree", main = "Cumulative degree distribution")
+
+plot (degree_distribution(g, mode="in", cumulative = FALSE), 
+      ylab = "Ratio", 
+      xlab = "Degree", main = "Degree distribution")
+```
+
+**c) Plot the degree and cumulative in-degree distributions, but this time on a log-log scale. Does the degree distribution look like it follows a power law?**
+
+```{r}
+par(mfrow=c(1,2))
+plot (degree_distribution(g, mode="in", cumulative = TRUE), log = "xy",
+      ylab = "Ratio (log scale)", 
+      xlab = "Degree (log scale)", 
+      main = "Cumulative degree dist (log-log)")
+
+plot (degree_distribution(g, mode="in", cumulative = FALSE), log = "xy",
+      ylab = "Ratio (log scale)", 
+      xlab = "Degree (log scale)", 
+      main = "Degree distribution (log-log)")
+```
+
+The degree distributions look like they follow a power law: it is rather linear on the log-log scale. The cumulative degree distribution on the log-log scale shows the power law more clearly than the non-logged plots in part b. 
+
+Also notice the noise in the tail of the (non-cumulative) degree distribution on log-log scale. This noise can be due to the relatively small number of nodes with very high degrees compared to the rest of the nodes in the network, which leads to less statistical certainty about the true distribution at that end. Cumulative distributions, on the other hand, tend to smooth out such fluctuations because they sum up the occurrences from the highest degree down to each degree point, increasing the sample size at each point as you move down the degree axis. This smoothing effect makes the power-law behavior more apparent in the cumulative plot as compared to the non-cumulative one.
+
+So it indeed seems that this network is scale-free. 
+
+*Note: this is a bit trivial, because by definition sample_pa() create scale-free networks. But this would be the method to follow if we needed to study if a network is scale-free or not.*
+
+**d) Using the in-degrees of the nodes in your network, estimate and report the α exponent of the power law.**
+
+```{r}
+# Extract the degrees first
+d <- degree(g, mode="in")
+
+# Then fit the power law
+a <- fit_power_law(d) 
+a
+```
+
+- The α value is estimated as 2.159, which makes sense, as most observed values are somewhere between 2 and 3.
+- The function estimated an xmin value of 12, which means that the scale-free property of the network starts after a degree of 12. 
+-  `KS.p` value printed: if this was small (e.g. less than 0.05), we would reject the hypothesis that the degree distribution comes from a power-law. Because the p-value is large here (0.999) we cannot reject the hypothesis that our network follows a power-law. So the network we have is consistent with a power-law (hence scale-free).
+
+**e) Using the α value you estimate above, calculate:**
+
+i- What proportion of all edges are attached to the most popular 20% of the nodes (most popular regarding the in-degree)?
+
+```{r}
+0.2^((a$alpha-2)/(a$alpha-1))
+```
+
+ii - What proportion of all edges are attached to the most popular 1% of the nodes?
+
+```{r}
+0.01^((a$alpha-2)/(a$alpha-1))
+```
+
+**f) The randomly created scale-free network above had 10,000 nodes. While we could inspect and study its degree distribution, we couldn’t see how a scale-free network would look like. This is because plotting the network with 10,000 nodes will take a long while for R. Now simulate a network as in 3-a, but with only 100 nodes. Plot the network and inspect it.**
+
+```{r}
+g.2 <- sample_pa(100, m = 3)
+set.seed(2021)
+plot(g.2, vertex.size=5, edge.color="Blue", edge.arrow.size=.3, 
+     vertex.label=NA, main='Scale-Free Network', asp=0)
+```
+
+There are a few nodes in the centre that has a lot of in-degree and there are many nodes around that have very few in degrees. This large inequality re in-degree is a key characteristic of scale-free networks.

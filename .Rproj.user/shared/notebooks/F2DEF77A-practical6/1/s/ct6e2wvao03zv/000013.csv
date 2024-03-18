@@ -1,0 +1,5 @@
+"0","par(mfrow=c(1,2))"
+"0",""
+"0","plot(c(0:4), degree_distribution(g.x, cumulative = FALSE), "
+"0","     type = ""b"", main =""Degree distribution"", "
+"0","     xlab=""Degree"", ylab =""p(degree)"" )"

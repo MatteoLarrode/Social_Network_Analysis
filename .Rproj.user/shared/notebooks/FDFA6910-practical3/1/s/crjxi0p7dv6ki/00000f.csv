@@ -1,0 +1,6 @@
+"0","barplot("
+"0","  height  = mbe[,2], "
+"0","  names.arg = mbe[,1], "
+"0","  xlab=""Course"", "
+"0","  ylab=""Avg betweenness"", "
+"0","  main = ""Betweenness"")"

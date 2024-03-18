@@ -1,0 +1,341 @@
+---
+title: "Practical 7: Assortativity and communities"
+author: "Matteo Larrode"
+date: "2024-03-18"
+output: html_document
+---
+
+```{r}
+library(igraph)
+library(igraphdata)
+```
+
+### Exercise 0: Modularity in an Example Network 
+
+```{r}
+g.x <- graph(c(1, 4, 1, 2, 1, 3, 2, 4, 3, 4, 4, 5, 5, 6, 5, 7, 5, 8),
+  directed = FALSE
+)
+
+set.seed(123)
+plot(g.x, asp = 0, vertex.color = c(rep(1, 4), rep(2, 4)))
+```
+
+**Calculate by hand the modularity for this network**
+
+```{r}
+modu_manual <- 5 / 9 - ((3 + 2 + 2 + 4) / 18)^2 + 3 / 9 - ((4 + 1 + 1 + 1) / 18)^2
+modu_manual
+```
+
+**Verify with function**
+
+```{r}
+# Note: need to declare which nodes belong to which group with `membership`
+modularity(g.x, membership = c(1, 1, 1, 1, 2, 2, 2, 2))
+```
+
+### Exercise 1: Communities in Zachary’s Karate Club Network
+
+```{r}
+library(igraphdata)
+data(karate)
+
+plot(karate, asp = 0)
+```
+
+#### Node-moving community detection algorithm
+
+```{r}
+fc <- cluster_fast_greedy(karate)
+
+print(fc)
+```
+
+```{r}
+plot(karate,
+  asp = 0, vertex.color = membership(fc),
+  main = "Community detection algo result"
+)
+```
+The maximum modularity value the algorithm reached was 0.43 which resulted in the final partition. The algorithm detected three communities in this final partition. One around Mr A, other around Mr. Hi, and another one with nodes 5,6,7,17,11. The third community sided with mr Hi’s group after the faction.
+
+In reality, there are two factions. But the community detection algorithm gave us a solution with more than two communities. Let's restrict the algorithm to have two communities only.
+
+```{r}
+fc2 <- cutat(fc, 2)
+print(fc2)
+```
+
+```{r}
+set.seed(12345)
+l <- layout_with_fr(karate)
+
+par(mfrow = c(1, 2))
+
+plot(karate,
+  asp = 0, vertex.color = fc2,
+  layout = l, main = "Community detection algorithm"
+)
+plot(karate,
+  asp = 0,
+  layout = l, main = "Actual split (ground truth)"
+)
+```
+The algorithm seems very successful. 
+
+We can even create a “confusion matrix” whereby we tabulate the actual groups vis-a-vis the grouping as a result of the community detection algorithm.
+
+```{r}
+table(V(karate)$Faction, fc2)
+```
+
+The algorithm has a 100% success rate!
+
+#### Assortativity 
+
+**Calculate an assortativity coefficient by degree.**
+
+```{r}
+assortativity(karate, degree(karate))
+```
+
+**Interpretation**: The network has negative assortativity with respect to degree. This means that isolated nodes tend to associate with central people and vice versa. This makes sense: if you are novice, you train with the instructor.
+
+### Exercise 2: Communities in the Game of Thrones Network
+
+```{r}
+dat <- read.csv("data/stormofswords.csv", header = TRUE)
+g <- graph.data.frame(dat, directed = FALSE)
+g <- set_edge_attr(g, "weight", value = E(g)$Weight)
+
+set.seed(12345)
+lgot <- graphlayouts::layout_with_stress(g)
+
+plot.igraph(g,
+  edge.color = "gray", layout = lgot,
+  vertex.size = page.rank(g)$vector * 200,
+  vertex.label.cex = betweenness(g) / 500, margin = 0, asp = 0,
+  main = "A network of thrones"
+)
+```
+
+#### Fast-greedy community detection algorithm
+
+```{r}
+fg <- cluster_fast_greedy(g)
+table(membership(fg))
+```
+
+```{r}
+plot.igraph(g,
+  edge.color = "gray",
+  vertex.size = 2.5,
+  vertex.label.cex = 0.75,
+  margin = 0, asp = 0,
+  main = "A network of thrones",
+  vertex.color = membership(fg), layout = lgot
+)
+```
+
+The algorithm found 7 communities.
+
+#### Louvain community detection algorithm
+
+```{r}
+fl <- cluster_louvain(g)
+table(membership(fl))
+```
+
+```{r}
+par(mfrow = c(1, 2)) # plotting louvain and node-moving side by side
+
+plot.igraph(g,
+  edge.color = "gray",
+  vertex.size = 5,
+  vertex.label.cex = 0.25,
+  margin = 0, asp = 0,
+  main = "GoT fast greedy",
+  vertex.color = membership(fg), layout = lgot
+)
+
+plot.igraph(g,
+  edge.color = "gray",
+  vertex.size = 5,
+  vertex.label.cex = 0.25,
+  margin = 0, asp = 0,
+  main = "GoT Louvain",
+  vertex.color = membership(fl), layout = lgot
+)
+```
+
+```{r}
+par(mfrow = c(1, 1))
+table(membership(fg), membership(fl))
+```
+
+The Louvain algorithm also detected 7 communities. In fact, the two solutions are identical. 
+
+Note that colours in the plot are arbitrary here. In the table, the algorithm names a community with an arbitrary label (1 to 7). There is no node which appears in different communities per different algorithm (that is why the rows or the columns of the matrix table(membership(fg), membership(fl)) contain a nonzero number only in one cell), hence the solutions of the two algorithms are identical.
+
+### Exercise 3: Communities in the SOCS0081 Network 
+
+```{r}
+N <- read.csv("data/net_anon24.csv", header = TRUE)
+c <- read.csv("data/courses24.csv", header = TRUE)
+S <- read.csv("data/seminars24.csv", header = TRUE)
+
+gn <- graph.data.frame(N, directed = TRUE)
+
+gn <- set_vertex_attr(gn, "course", value = c[as.numeric((V(gn)$name)), ]$course)
+gn <- set_vertex_attr(gn, "seminar", value = S[as.numeric((V(gn)$name)), ]$seminar)
+
+set.seed(1)
+lf <- layout.fruchterman.reingold(gn)
+
+plot(gn,
+  vertex.size = 2, edge.arrow.size = 0.3, vertex.label.cex = 0.7,
+  edge.curved = .2, asp = 0, layout = lf, vertex.label.dist = 0.7,
+  vertex.color = rainbow(4)[as.factor(V(gn)$course)], main = "Network of SOCS0081, isolates excluded"
+)
+legend("topleft",
+  bty = "n", legend = unique(as.factor(V(gn)$course)), cex = 0.7,
+  fill = rainbow(4)[unique(as.factor(V(gn)$course))]
+)
+```
+
+**Modularity by course**
+
+```{r}
+round(modularity(gn, membership = as.factor(V(gn)$course)), 3)
+```
+
+Modularity by course in this network is 0.493 which is a large value. The proportion of within course ties are 49.3 percentage points higher than what one would expect if all ties were created at random. So there is a strong tendency in SOCS0081 to be linked with someone from the same degree. 
+
+**Modularity by seminar**
+
+```{r}
+round(modularity(gn, membership = as.factor(V(gn)$seminar)), 3)
+```
+
+Modularity by seminar group in contrast is only 0.035. This shows that there is not much tendency in SOCS0081 to be linked with someone from the same seminar, which is not surprising given that the initial seminar allocations were nearly random.
+
+**Assortativity by degree**
+
+```{r}
+round(assortativity(gn, degree(gn)), 3)
+```
+
+There is also positive assortativity by degree, the correlation between degrees of linked nodes is 0.22 which is moderate and positive. This shows that there is a mild tendency in the network for popular people to nominate/be nominated by other popular people, and hermits by other hermits.
+
+Assortativity could be calculated by any continuous variable defined at the node level. 
+
+**Assortativity by closeness**
+
+```{r}
+round(assortativity(gn, closeness(gn, mode = "all")), 3)
+```
+
+**Assortativity by Google page rank**
+
+```{r}
+round(assortativity(gn, page_rank(gn)$vector), 3)
+```
+
+The results show that there is very strong assortativity by closeness: those who are more the center of the network (that is on average close to others in the network) tend to be friends with others who are also central. There is also positive assortativity by Google page rank of a node: central actors tend to be linked with other central actors while those who are less-central (defined by Google page rank) tend to be linked with other less-central actors.
+
+#### Community detection (undirected)
+
+*Note: Node moving fast greedy and louvain algorithms only accept simple graphs, meaning not directed, no self-edges and no multiple edges*
+
+```{r}
+gs <- simplify(graph.data.frame(N, directed = FALSE))
+
+# Fast-greedy algorithm
+fg <- cluster_fast_greedy(gs)
+table(membership(fg))
+
+# Louvain algorithm
+fl <- cluster_louvain(gs)
+table(membership(fl))
+
+# Confusion matrix
+table(membership(fl), membership(fg))
+```
+
+Node moving with fast and greedy finds 8 communities and louvain finds 9 communities. A cross-tab of the two shows that the two algorithms’ communities generally overlap–there are a few cases for which the two algorithms differ.
+
+Now let's restrict the number of communities to four, the same as the number of courses. We can then compare how the fast-greedy algorithm does compared to the ground truth.
+
+*Note: one can cut the results of some community detection algorithms with `cutat()` to set the number of final communities to a lower value than the algorithm settles (e.g. fast and greedy node moving allows this). But other community detection algorithms do not allow this (e.g. louvain). *
+
+```{r}
+fg4 <- cutat(fg, 4)
+
+table(fg4, V(gn)$course)
+```
+
+We see that majority of “Pols” and “SocSS” students are placed in distinct communities of their own, whereas SSDS and Other students are split mainly two different communities within each course. One of those SSDS communities is shared with SocSS students (2) and four SSDS students appear in the community that overlaps with Pols. 13 of Other students also overlap with Pols and the 4 SSDS students so this community is likely a "Q-Step" one.
+
+#### Community detection (directed)
+
+Some algorithms allow directed graphs, on the contrary of fast-greedy and Louvain.
+
+```{r}
+fb <- cluster_edge_betweenness(gn)
+table(membership(fb))
+```
+
+```{r}
+fb4 <- cutat(fb, 4)
+fb8 <- cutat(fb, 8)
+table(fb4)
+table(fb8)
+```
+
+The edge betweenness algorithm failed miserably in this case. It created one big community and several smaller communities. Let's try another algorithm that allows direction naturally.
+
+```{r}
+fi <- cluster_infomap(gn)
+table(membership(fi))
+
+table(membership(fi), membership(fg))
+```
+
+Those algorithms that allow direction do not really do a good job at describing the hidden communities in SOCS0081. The edge betweenness algorithm identifies one giant community and several very small communities which is less sensible. The infomap algorithm identifies too many communities (17 in total) and many of those communities are too small to be informative. While the infomap communities largely overlap with those identified by fast and greedy and louvain, it identifies too many communities. Overall, the simplest node moving and louvain algorithms give the most sensible results in this example.
+
+#### Community Data Visualisatioon
+
+```{r}
+# creating a node shape variable:
+V(gn)$shape <- "circle"
+V(gn)$shape <- ifelse(V(gn)$course == "Other",
+  "rectangle",
+  V(gn)$shape
+)
+
+V(gn)$shape <- ifelse(V(gn)$course == "Pols", "square", V(gn)$shape)
+V(gn)$shape <- ifelse(V(gn)$course == "SocSS", "sphere", V(gn)$shape)
+V(gn)$shape <- ifelse(V(gn)$course == "SSDS", "circle", V(gn)$shape)
+
+
+plot(gn,
+  vertex.size = 2, vertex.label.cex = 0.7,
+  edge.arrow.size = 0.3, edge.curved = .2, 
+  asp = 0, layout = lf, vertex.label.dist = 0.7,
+  vertex.color = membership(fg), 
+  vertex.shape = V(gn)$shape,
+  main = "Communities in SOCS0081 \n-Colours: communities (fast-greedy) \n-Shapes: course"
+)
+```
+
+```{r}
+plot(fg, gn,
+  vertex.size = 2, vertex.label.cex = 0.7,
+  edge.arrow.size = 0.3, edge.curved = .2, 
+  asp = 0, layout = lf, vertex.label.dist = 0.7,
+  vertex.color = membership(fg), 
+  vertex.shape = V(gn)$shape,
+  main = "Communities in SOCS0081 \n-Colours: communities (fast-greedy) \n-Shapes: course"
+)
+```

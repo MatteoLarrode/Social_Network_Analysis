@@ -1,0 +1,4 @@
+"0","g.x <- graph( c(1,2 ,1,4, 2,4, 3,4, 4,7, 5,7, "
+"0","                7,9, 8,9, 8,10, 9,10), directed=FALSE )"
+"0","set.seed(1234) ## set the seed in my original drawing, otherwise the nodes will float around"
+"0","plot(g.x)"

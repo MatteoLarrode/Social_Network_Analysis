@@ -1,0 +1,295 @@
+---
+title: "Practical 3"
+author: "Matteo Larrode"
+date: "2024-01-21"
+output: html_document
+---
+
+```{r}
+library(igraph)
+library(tidyverse)
+```
+### Exercice 1
+**a)**
+
+This network is a weighted undirected network. 
+
+**b)**
+
+```{r}
+got <- read.csv("data/stormofswords.csv")
+summary(got)
+```
+Number of edges:
+```{r}
+nrow(got)
+```
+
+Unique source characters:
+```{r}
+unique(got$Source)
+```
+**c) & d)**
+
+```{r}
+got_net <- graph.data.frame(got, directed = FALSE)
+got_net <- set_edge_attr(got_net, "weight", value= E(got_net)$Weight)
+
+summary(got_net)
+```
+**e)**
+
+```{r}
+plot.igraph(got_net)
+```
+This is a bit messy, we can remove nodes remove smaller nodes (nodes that have smaller than a given degree) with `g <- delete.vertices(g,which(degree(g)<1))` or faint edges (edges with low weights) from the graph with `g <- delete.edges(g, which(E(g)$weight <=7))`. We will do the former 
+
+```{r}
+got_net_reduced <- delete.vertices(got_net, which(degree(got_net) < 3))
+
+plot.igraph(got_net_reduced)
+```
+Let’s try to improve the plot. We can:
+- adjust edge width proportional to the weight of the edge
+- vertex size proportional to page rank
+- vertex label proportional to the betweenness of the node
+- remove the margins, and set aspect size to zero:
+
+```{r}
+plot.igraph(got_net, 
+            edge.color="black", edge.width=E(got_net)$Weight/10, 
+            vertex.size = page.rank(got_net)$vector*250, 
+            vertex.label.cex=betweenness(got_net)/600,  
+            margin=c(0,0,0,0) , asp=0)
+```
+
+**f)**
+
+```{r}
+sort(degree(got_net), decreasing = T)[1:15]
+sort(strength(got_net), decreasing = T)[1:15]
+sort(eigen_centrality(got_net)$vector, decreasing = T)[1:15]
+sort(page.rank(got_net)$vector, decreasing = T)[1:15]
+sort(closeness(got_net), decreasing = T)[1:15]
+sort(betweenness(got_net, weights = NULL), decreasing = T)[1:15]
+sort(betweenness(got_net), decreasing = T)[1:15]
+```
+
+Let's reproduce the graph from the original paper:
+
+```{r}
+C <- tibble(
+  names(V(got_net)), 
+  degree(got_net), 
+  strength(got_net), 
+  eigen_centrality(got_net)$vector,
+  eigen_centrality(got_net, weights = NA)$vector,
+  page.rank(got_net)$vector,
+  page.rank(got_net, weights = NA)$vector, 
+  closeness(got_net),
+  closeness(got_net, weights = NA),
+  betweenness(got_net, normalize = TRUE, weights = NA), 
+  betweenness(got_net, weights = NA)
+  )
+
+names(C) <- c(
+  "cname", "degree", "w-degree", 
+  "eigen", "unw-eigen", "prank", 
+  "unw-prank", "close", "unw-close", 
+  "between", "unw-between")
+
+toselect <- c(
+  "Robert", "Stannis", "Cersei", 
+  "Jaime", "Joffrey", "Tyrion",
+  "Tywin", "Arya", "Bran",
+  "Catelyn", "Jon", "Robb", 
+  "Sansa", "Daenerys")
+
+C_sub <- C |> 
+  filter(cname %in% toselect) |> #select only characters in Beveridge and Shan 
+  arrange(match(cname, toselect)) |> #ordering by name
+  select("cname", "degree", "w-degree", "eigen", "prank", "close", "between") |>
+  pivot_longer(-cname, names_to = "centrality", values_to = "value") |>
+  group_by(centrality) |> 
+  arrange(desc(value)) |> 
+  mutate(order = row_number()) |> 
+  ungroup() |> 
+  mutate(cname = factor(cname, levels = toselect)) |>  #arranging cname/centrality as factor for order in plot
+  mutate(centrality = factor(centrality, levels = c("degree", "w-degree", "eigen", "prank", "close", "between")))
+
+C_sub |> 
+  ggplot(aes(cname, value)) + geom_bar(stat ="identity") +  
+  facet_grid(~ centrality, scales = "free", shrink = TRUE) +
+  coord_flip() + geom_label(aes(label = order), size = 3) +
+  scale_x_discrete(limits = rev(levels(C_sub$cname))) +theme(
+  plot.title = element_blank(),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(), panel.spacing.x = unit(4, "mm"))
+```
+### Exercice 2
+
+**a)**
+
+```{r}
+N2 <- read.csv("data/net_anon24.csv",  header = TRUE)
+
+gn2 <- graph.data.frame(N2, directed = TRUE) + 
+  vertices(25, 16, 34, 64, 99, 54, 113)  #reading the edge list and adding isolates with vertices
+
+set.seed(1)
+lf2 <-layout.fruchterman.reingold(gn2) #fixing the layout with layout.fruchterman.reingold() 
+```
+Let's plot the network:
+```{r}
+plot(gn2, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     vertex.label.dist=0.7,
+     edge.curved=.2, 
+     asp = 0, 
+     layout = lf2)
+```
+
+Let's calculate density: only about 3% of all possible ties are present in the network
+
+```{r}
+edge_density(gn2)
+```
+
+For the diameter, calculations become more complicated because of the isolates. Diameter measures the longest shortest path. When there are isolates, the shortest path from those isolates to the ones connected in the larger network is undefined (infinite). To solve this, if the `unconnected` option of the `diameter()` function is set to TRUE, then R will calculate the diameter of the 
+connected component only. 
+
+A second issue is the direction: Do we want to take into account the direction in calculating the distance between two individuals? It depends on the question. For example, if we are interested in how fast information diffuses in the network, then perhaps the direction may not matter because I can hear something from another person even if I nominated that person or that person nominated me.
+
+```{r}
+diameter(gn2, unconnected = TRUE, directed = FALSE)
+```
+Ignoring the direction, the longest shortest distance between any two pairs in the connected component of our network is 11. 
+
+**b)**
+
+```{r}
+c2 <- read.csv("data/courses24.csv")
+
+# extract the unique student ids of those that appear in our network
+ids2 <- as.numeric((V(gn2)$name)) 
+
+# subset and order "c2" using only the ids included in the vector "names"
+c2 <- (c2[ids2,])
+
+# use the set_vertex_attr() function to add information about the course
+gn2 <- set_vertex_attr(gn2, "course", value = c2$course)
+```
+
+The network is now ready to plot:
+```{r}
+plot(gn2, vertex.size= 2, edge.arrow.size = 0.3,  vertex.label.cex = 0.7, 
+     edge.curved=.2, asp = 0, layout = lf2, vertex.label.dist=0.7, 
+     vertex.color = rainbow(4)[as.factor(V(gn2)$course)], main = "Network of SOCS0081")
+
+legend("topleft",bty = "n",legend=unique(as.factor(V(gn2)$course)), cex = 0.7, 
+       fill = rainbow(4)[unique(as.factor(V(gn2)$course))])
+
+```
+
+**c)**
+
+We now create a new object which includes the top 3 individuals with the highest scores in multiple measures of centrality:
+- indegree
+- betweenness (we take into account the direction in betweenness which is the default option in R)
+- closeness (not very informative in this network because of the existence of isolated disconnected nodes (they will make everyone rather distant))
+- page rank
+
+Outdegree is not informative because the questionnaire set up a maximum of 5.
+
+```{r}
+cen <- cbind(names(sort(degree(gn2, mode = "in"), decreasing = TRUE)[1:3]),
+              names(sort(closeness(gn2, mode = "all"), decreasing = TRUE)[1:3]),
+              names(sort(betweenness(gn2), decreasing = TRUE)[1:3]),
+              names((sort(page.rank(gn2)$vector, decreasing = TRUE)[1:3])) 
+              )
+rownames(cen) <- c("top", "second", "third")
+colnames(cen) <- c("indegree", "closeness", "betweenness", "google-pr")
+
+cen
+```
+
+Person 39 and 59 seem like rather central individuals: they appear in the top 3 list according to two measures. 
+- 59, who is a SocSS student has a high indegree and connects SocSS students with others.
+- 39 is a SSDS student who functions like 59, connecting SSDS with mainly Pols folks.
+- 77 is an interesting case, which works as a bridge between students from "other" programmes and rest. 
+
+Now we can calculate average betweenness and indegree centrality scores across courses using the `aggregate()` function.
+
+```{r}
+mind <- aggregate(
+  x = degree(gn2, mode = "in"), 
+  by = list(as.factor(V(gn2)$course)), 
+  FUN=mean)
+
+mind 
+```
+
+```{r}
+mbe <- aggregate(
+  x = betweenness(gn2), 
+  by = list(as.factor(V(gn2)$course)), 
+  FUN=mean)
+
+mbe 
+```
+
+PLotting the two means:
+```{r}
+barplot(
+  height  = mind[,2], 
+  names.arg = mind[,1], 
+  xlab="Course", 
+  ylab="Avg indegree", 
+  main = "Indegree")
+```
+
+```{r}
+barplot(
+  height  = mbe[,2], 
+  names.arg = mbe[,1], 
+  xlab="Course", 
+  ylab="Avg betweenness", 
+  main = "Betweenness")
+```
+
+Politics and SocSS students have highest average indegree. While SSDS is the largest group, politics folks tend to know each other very much, hence obtain a high indegree. 
+
+SocSS students, have very high betweenness, acting as a bridge between different groups such as Politics and SSDS. 
+
+Let's plot the network with node size proportional to centrality:
+
+```{r}
+plot(gn2, 
+     vertex.size= degree(gn2, mode = "in"), 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     vertex.label.dist=0, 
+     edge.curved=.2, 
+     asp = 0, layout = lf2,
+     vertex.color = rainbow(4)[as.factor(V(gn2)$course)],
+     main = "Network of SOCS0081: Node size proportional to indegree")
+
+legend("topleft",bty = "n",legend=unique(as.factor(V(gn2)$course)), cex = 0.7, 
+       fill = rainbow(4)[unique(as.factor(V(gn2)$course))])
+
+
+plot(gn2, 
+     vertex.size= betweenness(gn2)/200, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     vertex.label.dist=0, 
+     edge.curved=.2, asp = 0, layout = lf2,
+     vertex.color = rainbow(4)[as.factor(V(gn2)$course)], 
+     main = "Network of SOCS0081: Node size proportional to betweenness")
+
+legend("topleft",bty = "n",legend=unique(as.factor(V(gn2)$course)), cex = 0.7, 
+       fill = rainbow(4)[unique(as.factor(V(gn2)$course))])
+
+```

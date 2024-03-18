@@ -1,0 +1,212 @@
+---
+title: "Network Basics"
+author: "Matteo Larrode"
+date: "2024-01-21"
+output: html_document
+---
+
+```{r}
+library(igraph)
+library(network)
+library(igraphdata)
+```
+
+### Exercise 1
+
+This first network is a directed, cyclic network.
+
+```{r}
+adj_matrix <- matrix(
+  c(0, 0, 1, 0, 0,
+    1, 0, 0, 1, 0,
+    0, 1, 0, 1, 0,
+    0, 0, 0, 0, 0, 
+    1, 0, 1, 0, 0), nrow = 5, ncol = 5, byrow = TRUE)
+
+net1 <- graph_from_adjacency_matrix(adj_matrix)
+
+set.seed(123)
+plot(net1)
+```
+Now let's calculate in- and out-degree measures:
+```{r}
+indegree <- degree(net1, mode = "in")
+outdegree <- degree(net1, mode = "out")
+```
+
+To calculate the density, ignoring direction, we can do it by hand:
+```{r}
+mean(degree(net1))/(vcount(net1)-1)
+```
+
+An R function can be used to calculate density, this time taking direction into account:
+```{r}
+edge_density(net1, loops = FALSE) 
+```
+Note that we used `loops = FALSE` because we don't allow self-loops (that is arrows starting from the node and reaching the node itself)
+
+Ignoring the direction of the edges, it is also easy to calculate the shortest path length between each pair of nodes:
+```{r}
+shortest.paths(net1, mode = "out")
+
+max(shortest.paths(net1))
+```
+The maximum value of the above matrix shows the diameter of the network, 2.
+
+Finally, we can calculate the shortest path length between each pair of nodes this time taking direction into account:
+```{r}
+shortest.paths(net1, mode = "out")
+
+max(shortest.paths(net1, mode = "out"))
+```
+The directed diameter is infinite in this case, for there is simply no path from some nodes to some other nodes.
+
+### Exercice 2
+
+This second network is a bipartite or two-mode or affiliation network.Nodes (1,2,3,4) are affiliations and nodes (5,6,7,8,9) are members.
+
+The incidence matrix looks like this:
+```{r}
+inc_matrix <- matrix(
+  c(1, 0, 1, 0, 0,
+    0, 1, 1, 0, 0,
+    0, 0, 0, 1, 0,
+    0, 1, 1, 1, 1),  nrow = 4, ncol = 5, byrow = TRUE)
+```
+
+Note that this matrix is asymmetric; the number of affiliations is different to the number of members. 
+
+We can now create the graph, making sure we set the option `layout = layout_as_bipartite` for the plotting. Note that each vertex from the network created from an incidence matrix takes a *type* depending on whether it is an affiliation or member.
+```{r}
+set.seed(5432)
+net2 <- graph_from_incidence_matrix(inc_matrix)
+plot(net2, layout = layout_as_bipartite)
+```
+
+```{r}
+V(net2)$color <- ifelse(V(net2)$type, "lightblue", "salmon")
+net2
+
+plot(net2,layout=layout_as_bipartite)
+```
+Now, we can plot the projections of this bipartite network to 
+- individuals (nodes 5,6,7,8,9)
+- affiliations (nodes 1,2,3,4)
+
+```{r}
+net2.p <- bipartite.projection(net2)
+```
+
+Plotting projections to affiliations:
+```{r}
+plot(net2.p$proj1)
+```
+
+Next, projections for members. We need to manually give them back their indices.
+```{r}
+plot(net2.p$proj2,  vertex.label=c(5:9))
+```
+Finally, densities of the networks projected to the individuals and affiliations
+
+Density of the affiliation projection network:
+```{r}
+edge_density(net2.p$proj1)
+```
+
+Density of the member projection network
+```{r}
+edge_density(net2.p$proj2) 
+```
+
+### Exercice 3
+
+```{r}
+data <- read.csv("data/practical1.csv", header = TRUE)
+data_subset <- subset(data, Emails >=5)
+g1 <- graph.data.frame(data_subset, directed = TRUE)
+plot(g1)
+```
+Let's inspect some characteristics of the network:
+
+```{r}
+edge_density(g1) 
+diameter(g1)
+```
+Density is 0.6. 60% of all possible ties are present in this network. Note that here we have a directed network, so the maximum possible number of ties is n(n-1) [in a non-directed network this is n*(n-1)/2]. 
+
+The longest shortest path in this network is 2. Noe that the default of this function takes into account direction and our graph is directed. So 2 is the shortest longest path alongside the direction of the arrows. We could overwrite it by `diameter(g1, directed = FALSE)` which will calculate the diameter ignoring the direction of the ties. In this case, ignoring direction would result in the same diameter. 
+
+Now let's increase the minimum number of emails sent to be considered a tie from 5 to 7:
+```{r}
+data_subset2 <- subset(data, Emails >=7)
+g2 <- graph.data.frame(data_subset2, directed = TRUE)
+plot(g2)
+```
+Let's inspect the characteristics of this new network:
+
+```{r}
+edge_density(g2) 
+diameter(g2) 
+diameter(g2, directed = FALSE) 
+```
+Density is reduced to 0.4. This is because we used a more strict criterion to define a tie (>=7 emails), hence less ties exist with this definition compared to above. 
+
+Diameter now also increased to 3, this is sensible, as the sparser is the network, the longer will be the shortest paths between nodes, all else equal.  Note that if we ignore direction in calculating the diameter, the result in this case is different. It also makes sense that the diameter is lower with directions ignored, because now the paths can traverse toward any direction on a tie. 
+
+```{r}
+par(mfrow=c(1,2))
+
+optimal <- layout_with_fr(g1) #stores layout coordinates with some layout optimisation function
+plot(g1, layout = optimal, main = "Tie = 5 or more emails")
+plot(g2, layout = optimal, main = "Tie = 7 or more emails")
+```
+Now we will create a directed and weighted version of this email exchange.
+```{r}
+data_subset3 <- subset(data, Emails > 0)
+g3 <- graph.data.frame(data_subset3, directed = TRUE) |> 
+  set_edge_attr("weight", value= data_subset3$Emails) 
+
+is.weighted(g3)
+```
+
+Let's plot it:
+```{r}
+plot(g3, edge.width=E(g3)$weight, layout = optimal)
+```
+Back to basic characteristics:
+
+```{r}
+edge_density(g3) 
+diameter(g3) 
+diameter(g3, weights = NA)
+```
+Now almost all edges are there, we are only missing one edge (nad -> Burak), hence the density is 0.95.
+
+Something strange happens with density. The diameter by default takes into account the edge weight. 12 is the "longest" shortest path, which is from Nad -> Zoe. This is a shortest path but has a weight of 12, so `R` thinks this is the longest path which has a weight of 12. 
+
+Obviously, whether this makes sense depends on the nature of the network and the ties. In an email exchange network, perhaps it makes more sense to ignore the weights in calculating the diameter. But if this was a network of resistance between five power stations, then taking the edge weights into account would make sense. 
+
+We want to add some roles to the members of the network. Let's try to do it manually. 
+
+```{r}
+# first check how the nodes (vertices) are stored, the order of which will matter
+V(g1)
+
+# now add roles in the same order
+g1 <- set_vertex_attr(g1, "role", value = c("staff", "staff", "staff", "admin", "admin"))
+
+# we can plot with different colours now
+plot(g1, 
+     layout = optimal, 
+     main = "Tie = 5 or more emails, colors indicate roles", 
+     vertex.color = as.factor(V(g1)$role))
+```
+Let's curve the arrows, and increase the vertex size for cosmetic purposes:
+```{r}
+plot(g1, 
+     layout = optimal,
+     edge.curved=-.2, 
+     vertex.size=35, 
+     main = "Tie = 5 or more emails, colors indicate roles", 
+     vertex.color = as.factor(V(g1)$role))
+```

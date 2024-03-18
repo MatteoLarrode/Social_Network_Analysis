@@ -1,0 +1,5 @@
+"0","plot.igraph(got_net, "
+"0","            edge.color=""black"", edge.width=E(got_net)$Weight/10, "
+"0","            vertex.size = page.rank(got_net)$vector*250, "
+"0","            vertex.label.cex=betweenness(got_net)/600,  "
+"0","            margin=c(0,0,0,0) , asp=0)"

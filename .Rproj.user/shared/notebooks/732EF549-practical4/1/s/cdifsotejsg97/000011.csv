@@ -1,0 +1,27 @@
+"0","library(blockmodeling)"
+"2","To cite package 'blockmodeling' in publications please use package citation and (at
+least) one of the articles:
+
+  Žiberna, Aleš (2007). Generalized blockmodeling of valued networks. Social
+  Networks 29(1), 105-126.
+
+  Žiberna, Aleš (2008). Direct and indirect approaches to blockmodeling of valued
+  networks in terms of regular equivalence. Journal of Mathematical Sociology
+  32(1), 57–84.
+
+  Žiberna, Aleš (2014). Blockmodeling of multilevel networks. Social Networks 39,
+  46–61. https://doi.org/10.1016/j.socnet.2014.04.002.
+
+  Žiberna, Aleš (2023).  Generalized and Classical Blockmodeling of Valued
+  Networks, R package version 1.1.5.
+  Cugmas, Marjan (2023).  Generalized and Classical Blockmodeling of Valued
+  Networks, R package version 1.1.5.
+
+To see these entries in BibTeX format, use 'format(<citation>, bibtex=TRUE)', or
+'toBibtex(.)'.
+"
+"0","# First we need to extract the adjacency matrix in the matrix format from the karate graph object:"
+"0","kar <- as.matrix(get.adjacency(karate))"
+"0",""
+"0","#if you want to keep weights you can use this"
+"0","kar2 <- as.matrix(get.adjacency(karate, attr=""weight"")) "

@@ -1,0 +1,3 @@
+"0","par(mfrow=c(1,3)) # set the plot window for one row and three columns"
+"0",""
+"0","plot(Kclass2, main="""")"

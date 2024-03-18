@@ -1,0 +1,300 @@
+---
+title: "Practical 4"
+author: "Matteo Larrode"
+date: "2024-02-05"
+output: html_document
+---
+### Exercice 1: Karate Club
+
+```{r}
+library(igraph)
+library(igraphdata)
+
+data(karate)
+```
+
+```{r}
+set.seed(12345)
+plot.igraph(karate, vertex.color="gray", asp=0) 
+```
+
+More information about the network:
+```{r}
+is.directed(karate)
+is.weighted(karate)
+E(karate)$weight
+V(karate)$name
+```
+
+Centrality of top 5 actors:
+```{r}
+sort(degree(karate), decreasing = TRUE)[1:5]
+sort(strength(karate), decreasing = TRUE)[1:5]
+sort(closeness(karate, weights = NA, normalized=TRUE), decreasing = TRUE)[1:5]
+sort(betweenness(karate, weights = NA, normalized=TRUE), decreasing = TRUE)[1:5]
+sort(eigen_centrality(karate, weights = NA)$vector, decreasing  = TRUE)[1:5] #already normalized
+sort(page.rank(karate, weights = NA)$vector, decreasing  = TRUE)[1:5] #already normalized
+```
+
+John A and Mr Hi are often the top two characters in terms of different centrality scores. Actors 33 and 3 are the other central nodes in the network after John A and Mr Hi according to those different centrality measures. Actor 3 outranks John A with closeness centrality. This also makes sense, as Actor 3 occupies a position between the faction around A and H, and hence close to many other actors. Actor 2, Actor 32, and Actor 9 are other actors that make it to top 5. Again these actors seem to have ties with the faction around A and H.
+
+We can now examine **coreness** of the network:
+```{r}
+C <- coreness(karate)
+table(C)
+```
+
+```{r}
+set.seed(12345)
+plot(karate, vertex.size=15, vertex.color=coreness(karate),  main='Coreness', asp=0)
+```
+The table(C) function shows that there are 10 members of the 4-core, 12 new members of the 3-core (in addition to those that are members of the 4-core), 11 new members of the 2-core (in addition to the members of the 3- and 4- cores that are by default members of the 2-core). There is only 1 actor who is not a member of the 2- or more-cores (actor 12).
+
+The 4-core obviously is at the centre of the network. This contains John A and Mr Hi, as well as other central actors. Actor 12 seems like a hermit. Their only connection is to Mr Hi.
+
+#### Blockmodeling and structural equivalence.
+
+```{r}
+library(blockmodeling)
+
+# First we need to extract the adjacency matrix in the matrix format from the karate graph object:
+kar <- as.matrix(get.adjacency(karate))
+
+#if you want to keep weights you can use this
+kar2 <- as.matrix(get.adjacency(karate, attr="weight")) 
+```
+We will run the blockmodelling for structural equivalence. 
+
+- We use the `optRandomParC()` function of the package. The function wants us to specify the number of “roles” or “blocks” beforehand using the k = option. 
+- `rep` is how many times should the algorithm repeat the blockmodelling (then the algorithm selects the best partion among that many repetitions). 
+- algorithm also has many optimization options under `approach`. For now, we will keep it at “ss” which is sum of squares
+- The final option we will need to specify is blocks. The function allows many types of blocks. This is because the function is programmed more generally, to deal with other types of blockmodeling (e.g. regular equivalence etc.). We will use the blocks = "com" option. This instructs R to find a solution to try to come up with “complete” blocks which are composed of all 1’s as much as possible (hence other blocks will have to be composed of 0s). 
+
+We will be running blockmodeling with 2, 3, 4 blocks. 
+
+*Note: some versions of the `blockmodeling` package doesn’t have the `optRandomParC()` function but instead `opt.random.par()` for the same function*
+
+```{r}
+Kclass2 <- optRandomParC(M=kar, k=2, rep=10, approach="ss", blocks = "com") 
+Kclass3 <- optRandomParC(M=kar, k=3, rep=10, approach="ss", blocks = "com") 
+Kclass4 <- optRandomParC(M=kar, k=4, rep=10, approach="ss", blocks = "com") 
+```
+We now have the results of blockmodelling stored as objects Kclass2, Kclass3, and Kclass4. We will now plot the adjacency matrix with those solutions.
+
+```{r}
+par(mfrow=c(1,3)) # set the plot window for one row and three columns
+
+plot(Kclass2, main="")
+title("Two Block Partition")
+
+plot(Kclass3, main="") 
+title("Three Block Partition")
+
+plot(Kclass4, main="") 
+title("Four Block Partition")
+
+```
+In each solution, R rearranged the adjacency matrix to make block either all blacks or all whites, as much as possible. Those would then be separate blocks, i.e. structurally equivalent actors.
+
+We can plot the network with the nodes coloured based on the result of blockmodeling, which makes it easier to inspect the results.
+
+```{r}
+l <- layout_with_fr(karate) #creating one layout and saving it as object "l". 
+par(mfrow=c(1,3))
+
+#result of two blocks:
+plot(karate, vertex.size=15, vertex.color=Kclass2$best$best1$clu, layout = l, asp=0)
+title("Two Block Partition")
+
+#result of three blocks:
+plot(karate, vertex.size=15, vertex.color=Kclass3$best$best1$clu, layout = l, asp=0)
+title("Three Block Partition")
+
+#result of four blocks:
+plot(karate, vertex.size=15, vertex.color=Kclass4$best$best1$clu, layout = l, asp=0)
+title("Four Block Partition")
+```
+
+In the two block partition, there is a core/periphery structure. John A, Mr Hi, 33, 3, and 2 (all central actors) are structurally (approximately) equal. The periphery (blues) are structurally equivalent to each other–i.e. they play a similar social “role”.
+
+In the three block case, we have John A and his sidekick person 33 who seem to play the same role as John A. We then have Mr Hi and his immediate clique around who are deemed to play similar roles in the network. It is difficult to imagine that, Mr Hi and Actor 12 are structurally equivalent, and play similar roles. So the three block solution is less sensible than the two block solution. The three block partition also identifies a periphery around John A and Actor 33.
+
+The four block partition is also rather sensible. John A and his sidekick Actor 33 are one block. So given that John A is the president, one may speculate that Actor 33 could stand for John A in administrative stuff. We then have Mr Hi and people immediately around him who are also central in the network as another block. This block around Mr Hi can be thought of having a role of “instructors”, given that Mr Hi is the chief instructor–though this is completely speculative. Then the four block partition identifies two further blocks, a periphery around John A and another around Mr Hi.
+
+### Exercice 2: Groups of Nodes in SOCS0081 data
+
+#### Cliques in the course
+
+```{r}
+N <- read.csv("data/net_anon24.csv", header = TRUE) 
+c <- read.csv("data/courses24.csv", header = TRUE) 
+
+gn <- graph.data.frame(N, directed = TRUE) + vertices(25, 16, 34, 64, 99, 54, 113)
+
+#selecting and ordering courses according tho the node order and set in V(gn)
+c <- c[as.numeric((V(gn)$name)),]
+
+gn <- set_vertex_attr(gn, "course", value = c$course)
+```
+
+First, we can identify the largest cliques in the class:
+```{r}
+lc <- largest_cliques(gn) 
+lc
+```
+The largest clique has 6 members which is composed of POLS students. We can visualise it. 
+
+```{r}
+set.seed(1)
+lf <-layout.fruchterman.reingold(gn) 
+
+V(gn)$clique <- ifelse(V(gn) %in% c(largest_cliques(gn)[[1]]), 1, 0)
+
+plot(gn, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     edge.curved=.2, asp = 0, 
+     layout = lf, 
+     vertex.label.dist=0.7, 
+     vertex.color = V(gn)$clique, 
+     main = "Largest clique in SOCS0081")
+```
+
+While there is a single largest clique of 6, there are several other cliques of size 5:
+
+```{r}
+print(cliques(gn, min = 5, max = 100))
+```
+
+We can plot them the same way as before:
+```{r}
+V(gn)$clique5 <- ifelse(V(gn) %in% unlist(cliques(gn, min = 5, max = 100)), 1, 0) 
+#we are using the unlist() function to extract all elements of list into a single vector
+
+plot(gn, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     edge.curved=.2, asp = 0, 
+     layout = lf, 
+     vertex.label.dist=0.7, 
+     vertex.color = V(gn)$clique5, 
+     main = "Cliques of size 5 or more in SOCS0081")
+
+```
+
+Note that R ignores the direction in ties in identifying cliques. This perhaps makes sense, as otherwise (i.e. defining cliques with direction requiring everyone in the clique to be linked with everyone else both directions), the cliques would be very small and would not give sensible results. 
+
+#### Coreness in the course
+
+**Coreness list (largest core in which each node belongs):**
+
+```{r}
+coreness(gn)
+```
+**Number of nodes in each coreness:**
+
+```{r}
+table(coreness(gn))
+```
+
+**Which nodes belongs to the largest k-core:**
+
+```{r}
+coreness(gn)[coreness(gn) == max(coreness(gn))]
+```
+
+**Tabulating coreness with course:**
+
+```{r}
+table(coreness(gn), V(gn)$course)
+```
+
+The largest k-core here is a 7-core which has 8 individuals in it. So each of these 8 individuals is joined to at least 7 others in this network. The individuals in this 7-core are: 22, 26, 42, 50, 53, 80, 83, 88. This again corresponds to the group of people who formed the dense cliques within the Pols faction of the SOCS0081 network. There is also a 6-core with 30 individuals. This 6-core spans mainly the SSDS folks but also SocSS and Other.
+
+In fact, the cross-tab of course with k-cores show that in fact all members of the 7-core is studying Politics. The majority of the 6-core is SSDS students, although there is also a considerable number of SocSS and Other students in this 6-core too. There are also many SSDS students who are part of the smaller k-cores. The students from other programmes mainly belong to a 5- and 6-core, though some are in a 0- and 3-core. These patterns again show differences across programmes in terms of connectivity and clustering.
+
+We can visualise the coreness of the programme:
+
+```{r}
+plot(gn, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     edge.curved=.2, 
+     asp = 0, layout = lf, 
+     vertex.label.dist=0.7, 
+     vertex.color =rainbow(8)[as.factor(coreness(gn))], 
+     main = "Coreness in SOCS0081")
+
+legend("topleft",
+       bty = "n",
+       legend=unique(as.factor(coreness(gn))), 
+       cex = 0.7, 
+       fill = rainbow(8)[unique(as.factor(coreness(gn)))]
+       )
+
+```
+
+#### Blockmodeling of SOCS0081 Network
+
+We will try blockmodels with 5, 6, and 7 blocks.
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+MS <- as.matrix(gn) #turning gn network into a matrix needed for blockmodelling
+
+c5 <- optRandomParC(M=MS, k=5, rep=10, approach="ss", blocks="com")
+c6 <- optRandomParC(M=MS, k=6, rep=10, approach="ss", blocks="com")
+c7 <- optRandomParC(M=MS, k=7, rep=10, approach="ss", blocks="com")
+```
+
+Time for visualisation!
+
+```{r}
+plot(gn, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     edge.curved=.2, 
+     asp = 0, layout = lf, 
+     vertex.label.dist=0.7, 
+     vertex.color = c5$best$best1$clu, 
+     main = "5 blocks of SOCS0081", 
+     margin=c(0,0,0,0))
+
+plot(gn, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     edge.curved=.2, 
+     asp = 0, layout = lf, 
+     vertex.label.dist=0.7, 
+     vertex.color = c6$best$best1$clu, 
+     main = "6 blocks of SOCS0081", 
+     margin=c(0,0,0,0))
+
+plot(gn, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     edge.curved=.2, 
+     asp = 0, layout = lf, 
+     vertex.label.dist=0.7, 
+     vertex.color = c7$best$best1$clu, 
+     main = "7 blocks of SOCS0081", 
+     margin=c(0,0,0,0))
+```
+
+Let's tabulate the course with the 5-block solution:
+
+```{r}
+table(c5$best$best1$clu, V(gn)$course)
+```
+
+We can even test the relationship between course and structural equivalence formally:
+```{r warning=FALSE}
+chisq.test(table(c5$best$best1$clu, V(gn)$course))
+```
+
+The cross-tab of the 5-blocks with the course shows interesting patterns. The “other” folks are placed across two blocks only, one the centre and the other on the periphery. SSDS folks are distributed across four blocks, first one with a more periphery with 25 members, and other core groups. This shows that SSDS students occupy several different network roles. SocSS students are distributed across two blocks, again one core and another periphery. The chi-square test of the cross-table of course with the 5-blocks show that there is a statistically highly significant relationship between course and the network ``roles” in the network of SOCS0081, perhaps supporting our interpretations of the differences between the distribution of course members across blocks (if the chi-sq test was insignificant, that would mean the members of the four courses were roughly equally distributed across the 5-blocks but this hypothesis is rejected).

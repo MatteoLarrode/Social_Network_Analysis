@@ -1,0 +1,4 @@
+"0","par(mfrow=c(1,2))"
+"0","plot (degree_distribution(g, mode=""in"", cumulative = TRUE), "
+"0","      ylab = ""Ratio"", "
+"0","      xlab = ""Degree"", main = ""Cumulative degree distribution"")"

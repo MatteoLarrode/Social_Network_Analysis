@@ -1,0 +1,5 @@
+"0","par(mfrow=c(1,2))"
+"0","plot (degree_distribution(g, mode=""in"", cumulative = TRUE), log = ""xy"","
+"0","      ylab = ""Ratio (log scale)"", "
+"0","      xlab = ""Degree (log scale)"", "
+"0","      main = ""Cumulative degree dist (log-log)"")"

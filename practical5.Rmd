@@ -1,0 +1,226 @@
+---
+title: "Practical 5: Transitivity, Clustering, Reciprocity, Balance"
+author: "Matteo Larrode"
+date: "2024-02-08"
+output: html_document
+---
+
+```{r}
+library(igraph)
+```
+### Exercice 1: Edge Attributes in a Simple Network 
+
+#### Reciprocity
+
+```{r}
+g.1 <- graph(c(1,2,2,1,1,3,3,1,2,4,4,2,3,4,4,1))
+
+plot(g.1, edge.curved=.2, layout=layout.circle)
+```
+There are 8 arrows in this plot and 6 of them are reciprocated, so reciprocity will be 6/8 = 0.75. 
+
+```{r}
+reciprocity(g.1)
+```
+
+On average, if there is an edge from A to B, the chance that there is also an edge from B to A is 75%. This is a rather high value. On WWW, reciprocity is about 57%. It means that in this network reciprocity is very strong.
+
+#### Clustering
+
+```{r}
+g.2 <- graph( c(2,1, 3,1, 4,1, 5,1, 3,4, 4,5), directed = FALSE)
+
+plot(g.2, layout=layout.star)
+```
+Local clustering of a node is the number of pairs of friends of i that are connected, divided by the number of pairs friends of i. Number of pairs of friends of i is just d*(d-1)/2 where d is i’s degree (that is number of friends).
+
+- For node 1, d = 4, so number of pairs of friends is 4*3/2 = 6. Two pairs of node 1’s friends are friends, so node 1’s local clustering coefficient is 2/6 = 0.33. 
+
+- Node 2 has only one friend who is node 1. So the number of pairs of friends of node 2 is 1*0/2 = 0. Also, zero pairs of friends of node 2 is friends, hence local clustering for node 2 is 0/0 = indefinite. We will simply substitute 0 for this below. 
+
+- Node 3 has two friends who are also friends. So local clustering for node 3 = 1 (i.e. 1/(2*1/2) ). 
+
+- Node 4 has 3 friends and two of these pairs are friends themselves. So clustering coeff for node 4 is: 2/(3*2/2) = 0.66667. 
+
+- Node 5 has two friends who are friends themselves, so local clustering of Node 5 = 1.
+
+```{r}
+transitivity(g.2, type="local", isolates = "zero")
+# isolates = "zero" substitutes zero for indefinite values (NaN)
+```
+
+We can also use R to calculate the global clustering coefficient:
+```{r}
+transitivity(g.2, type="global")
+```
+
+55% of all path lengths of two are closed. That is there is 55% chance that two of a person’s friend will be friends too, on average.
+
+#### Balance
+
+```{r}
+M <- matrix(1, nrow = 5, ncol = 5) #adjacency matrix of the network: all 1's, complete network
+diag(M) <- 0 #replacing diagonals with 0 as no self-edges are allowed.
+
+g.3 <- graph_from_adjacency_matrix(M, mode = "undirected")
+
+plot(g.3, layout = layout.circle, 
+     edge.label = c("+", "+", "-", "-", "+", "-", "-", "-", "-", "+"), #labels of the edges
+     edge.label.cex=2, edge.label.font = 2) #cosmetic stuff
+```
+**a)**
+
+The network is balanced. All loops contain an even number of minus signs.
+
+**b)**
+
+All balanced networks are clusterable. The top three nodes will be one cluster, and bottom two nodes will be another cluster. Within these two clusters, everybody likes each other, between these clusters, everybody hates each other.
+
+### Exercice 2: 2001 - A Space Odyssey
+
+```{r}
+N <- readRDS("data/so2001.rds")
+
+set.seed(123456789) 
+plot.igraph(N, 
+            edge.color="gray",
+            edge.width=0.3, 
+            vertex.size = 0, 
+            vertex.label.cex=0.6,  
+            margin=c(0,0,0,0) , 
+            asp=0, 
+            main = "2001: A Space Odyssey")
+```
+Floyd and Narrator seem rather central. The AI computer HAL seems to link the top of the graph with the Narrator and Floyd. The network seems to include many triangles. Hence, transitivity should be large.
+
+```{r}
+round(transitivity(N), digits = 2)
+```
+
+The clustering coefficient is 0.65. 65% of all path lengths of two are closed. That is there is 65% chance that two of a particular character’s neighbours will be neighbours too, on average. This is a rather high value. So there is a strong tendency in this network to form closed triangles. 
+
+This may be the result of how the network is constructed. Two characters have a link if they appear together in the same scene. In fact, this network might be thought of as a one-mode projection of a bipartite network: characters are “affiliated” with scenes, and we are seeing the projection to the characters. Recall that one-mode projections of bipartite networks are composed of cliques. If several characters appear in the same scene together (which is natural to expect in a movie), there will be links between all those characters (hence clique), and hence there will be many triangles.
+
+```{r}
+cbind(V(N)$name, round(transitivity(N, type = "local"), digits = 2))
+```
+
+```{r}
+T <- transitivity(N, type="local")              
+B <- betweenness(N)
+
+plot(T, B, xlab="Local clustering", ylab="Betweenness")       
+abline(lm(B ~ T)) 
+text(0.8, 100, paste("Correlation:", round(cor(T,B),2)))
+text(T, B, labels=V(N)$name,cex=0.4, font=2, pos=1)
+
+```
+Local clustering coefficient and betweenness tap into similar mechanisms. Both tell us something about the connections between the neighbours of an actor, which in turn tell us how “important” a node is in transmitting information through the network. Local clustering and betweenness are inversely related. The plot demonstrates this nicely. The correlation between the two is -0.81 which is a large value in absolute sense. Actors with high betweenness have low local clustering. Floyd and Narrator are two characters with very high betweenness centrality. The hence have low local clustering. These two actors are crucial in connecting the network, and in information flow within the network.
+
+### Exercice 3: Edge Attributes in the SOCS0081 Network
+
+```{r}
+N <- read.csv("data/net_anon24.csv", header = TRUE) 
+c <- read.csv("data/courses24.csv", header = TRUE) 
+
+gn <- graph.data.frame(N, directed = TRUE) + vertices(25, 16, 34, 64, 99, 54, 113)
+gn <- set_vertex_attr(gn, "course", value = c[as.numeric((V(gn)$name)),]$course)
+
+set.seed(1)
+lf <-layout.fruchterman.reingold(gn) 
+
+plot(gn, 
+     vertex.size= 2, 
+     edge.arrow.size = 0.3,  
+     vertex.label.cex = 0.7, 
+     edge.curved=.2,
+     asp = 0, layout = lf, 
+     vertex.label.dist=0.7, 
+     vertex.color = rainbow(4)[as.factor(V(gn)$course)], 
+     main = "Network of SOCS0081")
+
+text(-1, -1, paste("Global clustering:", round(transitivity(gn),3) )) # adding global clustering on the plot
+
+legend("topleft",
+       bty = "n",
+       legend=unique(as.factor(V(gn)$course)), 
+       cex = 0.7, 
+       fill = rainbow(4)[unique(as.factor(V(gn)$course))])
+
+```
+The transitivity of this network is about 37% which is the proportion of path lengths of two that are closed. 
+
+*Note that R ignores the direction in calculating clustering coefficient. Clustering in directed graphs is not well defined and there is no consensus in the field as to the best way of calculating clustering in directed graphs.*
+
+This means that if one student is friends with two other students (ignoring the direction of friend nominations), on average, there is 37% chance that these two other students are friends themselves, too. While this is a large value, recall that in most social networks the typical value of C is between 0.2 and 0.6, the coefficient is close to the lower end of this spectrum. This again is perhaps due to the relatively sparse nature of the network in our class.
+
+**Clustering and betweenness**
+
+```{r}
+plot(transitivity(gn, type = "local", isolates = "NaN"), 
+     betweenness(gn, normalized = TRUE), 
+     main = "Local clustering and betweenness centrality in SOCS0081")
+
+abline(lm(betweenness(gn, normalized = TRUE) ~ transitivity(gn, type = "local", isolates = "NaN") ))
+
+text(0.8, 0.1, paste("Correlation:", 
+                     round(cor(transitivity(gn, type = "local", isolates = "NaN"), 
+                               betweenness(gn, normalized = TRUE), 
+                               use = "na.or.complete"),2)))
+
+text(transitivity(gn, type = "local", isolates = "NaN"), 
+     betweenness(gn, normalized = TRUE), 
+     labels=V(gn)$name,cex=0.7, font=2, pos=2)
+```
+As expected local clustering and betweenness are negatively correlated in our network too. However, the correlation is less steep (-0.39) than the one we observed in the previous network. This is probably because there are several students in class who have low transitivity (few of their friends are friends themselves) but also low betweenness (e.g., nodes 33, 44, 52). One would normally expect such students to have high betweenness. When one focuses on those nodes that make the association less steep, what appears is that they are placed towards the periphery of the network. For example, 33 has two friends which are at the very periphery of the network. Because the network has such “fingers”, i.e. cul-de-sacs in the network, those that connect the “fingers” to the hand have both low local clustering and low betweenness. This is probably the reason why the negative link between clustering and betweenness is not so steep in our network.
+
+**Distribution of local clustering across the courses**
+
+```{r}
+mtr <- aggregate(x = transitivity(gn, type = "local", isolates = "zero"), 
+                 by = list(as.factor(V(gn)$course)), 
+                 FUN=mean)
+
+barplot(height  = mtr[,2], names.arg = mtr[,1], 
+        xlab="Course", 
+        ylab="Avg local clustering", 
+        main = "Local clustering across courses")
+```
+
+```{r}
+summary(lm(transitivity(gn, type = "local", isolates = "zero") ~ as.factor(V(gn)$course)))
+```
+
+The bar plot shows that the local clustering coefficient is the highest among Other and Pols students. However, the differences are not that high, except SocSS students. In fact the linear regression shows that, except SocSS sstudents, students of the courses do not significantly differ from the reference category of Other. Yet, SocSS students have significantly lower local clustering coefficient than Other students. 
+
+*Note 1:  we supplied a local clustering value of zero to the isolates, otherwise the averages we get with the `aggregate()` function would return `NAs`. By substituting a value of zero clustering to the isolates, we effectively ignore them in the average calculations.*
+
+*Note 2: we could substitute `NaNs` to the isolates within the `lm()` function whereby we fit a regression model. This would probably make more sense than what I do above with `isolates = "zero" within `lm()`*
+
+**Reciprocity**
+
+```{r}
+reciprocity(gn)
+```
+
+The reciprocity of this network is equal to 0.589. This is a relatively high value. If student A nominates student B, there is on average 59% chance that B also nominates A. So while our network is not very dense as we have seen from our previous analyses, this high reciprocity value shows that dyads are important in the network.
+
+**Small-world dynamics**
+
+Taking direction into account:
+```{r}
+mean_distance(gn, directed = TRUE, unconnected = TRUE)
+```
+
+Ignoring directions:
+```{r}
+mean_distance(gn, directed = FALSE, unconnected = TRUE)
+```
+
+This shows that the average distance between the connected nodes is 6.331 and 4.216 taking into account and ignoring directions, respectively. Given that our network is relatively small with only 110 nodes, these are large distances. Recall that people talk about 6-degree of separation in the world. We have roughly the same degree of separation within our relatively small class. 
+
+Small world networks are characterised by two things: 
+- high clustering
+- low distance
+
+While our network has a typical clustering value which is not too low (hence satisfies the first condition), the distance is also high (not satisfying the second condition so much). The relatively high distance in our network could be due to the sparse and fragmented nature of our network in SOCS0081. Maybe in the long run, as people continue making friends in the class, we would approach a small-world like network in SOCS0081.

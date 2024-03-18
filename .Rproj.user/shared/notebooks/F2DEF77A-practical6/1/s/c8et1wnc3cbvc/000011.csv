@@ -1,0 +1,4 @@
+"0",""
+"0","plot (degree_distribution(g, mode=""in"", cumulative = FALSE), "
+"0","      ylab = ""Ratio"", "
+"0","      xlab = ""Degree"", main = ""Degree distribution"")"
